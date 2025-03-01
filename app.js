@@ -3,6 +3,8 @@ const app = express();
 
 const orphanRouter = require("./routes/orphanRoutes");
 
+app.use(express.json());
+
 app.use("/orphans", orphanRouter);
 
 app.listen(3000);
