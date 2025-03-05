@@ -1,7 +1,10 @@
-const Sequelize = require('sequelize');
+const mysql = require('mysql');
 
-const sequelize = new Sequelize('hopeconnect', 'root', '1252alaa]]]]', {
-    dialect: 'mysql', host: 'localhost'
+const pool = mysql.createPool({
+    host: 'localhost',
+    user: 'root',
+    database: 'hopeconnect',
+    password: '1252alaa]]]]'
 });
 
-module.exports = sequelize;
+module.exports = pool.promise();
