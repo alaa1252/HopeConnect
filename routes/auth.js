@@ -1,31 +1,26 @@
-const express = require("express");
-const body = require("express-validator/check");
-
+const express = require('express');
 const router = express.Router();
+const { 
+  register, 
+  login, 
+  getMe, 
+  forgotPassword,
+  resetPassword,
+  updateDetails,
+  updatePassword,
+  verifyEmail,
+  logout
+} = require('../controllers/auth');
+const { protect } = require('../middlewares/auth');
 
-router.put('/signup', [
-    body("email").isEmail().withMessage('please enter a valid email.')
-    .custom((val, {req}) => {
-        return UserActivation.findOne({email: val}).then(userDoc => {
-            if(userDoc) {
-                return Promise.reject('email address already exists.');
-            }
-        });
-    }).normalizeEmail(),
-    body('password').trim().isLength({min:6}),
-    body('name').trim.not().isEmpty()
-], aurhController.signup);
-
-router.put('/login', [
-    body("email").isEmail().withMessage('please enter your email.')
-    .custom((val, {req}) => {
-        return UserActivation.findOne({email: val}).then(userDoc => {
-            if(!userDoc) {
-                return Promise.reject('email address does not exists.');
-            }
-        });
-    }).normalizeEmail(),
-    body('password').trim().isLength({min:6, max:6}),
-], aurhController.signup);
+router.post('/register', register);
+router.post('/login', login);
+router.get('/me', protect, getMe);
+router.get('/logout', protect, logout);
+router.put('/updatedetails', protect, updateDetails);
+router.put('/updatepassword', protect, updatePassword);
+router.post('/forgotpassword', forgotPassword);
+router.put('/resetpassword/:token', resetPassword);
+router.get('/verify-email/:token', verifyEmail);
 
 module.exports = router;
