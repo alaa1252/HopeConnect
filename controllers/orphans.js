@@ -322,3 +322,114 @@ exports.deleteOrphan = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.addOrphanUpdate = async (req, res, next) => {
+  try {
+    const { update_type, title, description } = req.body;
+
+    const [orphanRows] = await pool.execute(
+      'SELECT * FROM orphans WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (orphanRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Orphan not found'
+      });
+    }
+
+    const [result] = await pool.execute(
+      `INSERT INTO orphan_updates
+       (orphan_id, update_type, title, description, created_by)
+       VALUES (?, ?, ?, ?, ?)`,
+      [req.params.id, update_type, title, description, req.user.id]
+    );
+
+    const [update] = await pool.execute(
+      'SELECT * FROM orphan_updates WHERE id = ?',
+      [result.insertId]
+    );
+
+    const [sponsors] = await pool.execute(
+      `SELECT u.id, u.email, u.first_name 
+       FROM users u
+       JOIN sponsorships s ON u.id = s.sponsor_id
+       WHERE s.orphan_id = ? AND s.status = 'active'`,
+      [req.params.id]
+    );
+
+    for (const sponsor of sponsors) {
+      await pool.execute(
+        `INSERT INTO notifications
+         (user_id, title, message, notification_type, related_id)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          sponsor.id,
+          `Update about ${orphanRows[0].first_name}`,
+          `There is a new ${update_type} update for ${orphanRows[0].first_name} ${orphanRows[0].last_name}`,
+          'sponsorship',
+          result.insertId
+        ]
+      );
+    }
+
+    res.status(201).json({
+      success: true,
+      data: update[0]
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getOrphanUpdates = async (req, res, next) => {
+  try {
+    const [orphanRows] = await pool.execute(
+      'SELECT * FROM orphans WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (orphanRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Orphan not found'
+      });
+    }
+
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const startIndex = (page - 1) * limit;
+
+    const [countRows] = await pool.execute(
+      'SELECT COUNT(*) as total FROM orphan_updates WHERE orphan_id = ?',
+      [req.params.id]
+    );
+    const total = countRows[0].total;
+
+    const [updates] = await pool.execute(
+      `SELECT ou.*, u.first_name as creator_first_name, u.last_name as creator_last_name
+       FROM orphan_updates ou
+       JOIN users u ON ou.created_by = u.id
+       WHERE ou.orphan_id = ?
+       ORDER BY ou.created_at DESC
+       LIMIT ?, ?`,
+      [req.params.id, startIndex, limit]
+    );
+
+    const pagination = {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
+
+    res.status(200).json({
+      success: true,
+      pagination,
+      data: updates
+    });
+  } catch (error) {
+    next(error);
+  }
+};
