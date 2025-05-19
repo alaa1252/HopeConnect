@@ -2,7 +2,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../config/db');
-const sendEmail = require('../utils/sendEmail');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -22,18 +21,6 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    const [existingUser] = await pool.execute(
-      'SELECT id FROM users WHERE email = ?',
-      [email]
-    );
-
-    if (existingUser.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email already registered'
-      });
-    }
-
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -45,19 +32,6 @@ exports.register = async (req, res, next) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [email, hashedPassword, first_name, last_name, role, phone, address, verificationToken]
     );
-
-    const verificationUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/verify-email/${verificationToken}`;
-    
-    await sendEmail({
-      email,
-      subject: 'HopeConnect - Verify Your Email',
-      html: `
-        <h1>Welcome to HopeConnect!</h1>
-        <p>Please verify your email address by clicking the link below:</p>
-        <a href="${verificationUrl}" target="_blank">Verify Email</a>
-        <p>If you didn't create this account, please ignore this email.</p>
-      `
-    });
 
     const token = generateToken(result.insertId);
 
@@ -102,13 +76,6 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
-      });
-    }
-
-    if (!user.is_verified) {
-      return res.status(401).json({
-        success: false,
-        message: 'Please verify your email before logging in'
       });
     }
 
@@ -182,21 +149,7 @@ exports.forgotPassword = async (req, res, next) => {
       'UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE id = ?',
       [resetToken, resetExpires, rows[0].id]
     );
-
-    const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/reset-password/${resetToken}`;
-
-    await sendEmail({
-      email,
-      subject: 'HopeConnect - Password Reset',
-      html: `
-        <h1>Password Reset Request</h1>
-        <p>You are receiving this email because you (or someone else) has requested a password reset.</p>
-        <p>Please click the link below to reset your password:</p>
-        <a href="${resetUrl}" target="_blank">Reset Password</a>
-        <p>If you didn't request this, please ignore this email and your password will remain unchanged.</p>
-      `
-    });
-
+    
     res.status(200).json({
       success: true,
       message: 'Password reset email sent'
