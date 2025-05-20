@@ -27,12 +27,6 @@ router.put(
   authorize('admin', 'orphanage_manager'),
   updateOrphan
 );
-router.put(
-  '/:id/photo',
-  protect,
-  authorize('admin', 'orphanage_manager'),
-  uploadOrphanPhoto
-);
 router.delete(
   '/:id',
   protect,
