@@ -7,7 +7,6 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
 const orphanRoutes = require('./routes/orphans');
 const orphanageRoutes = require('./routes/orphanages');
 const donationRoutes = require('./routes/donations');
@@ -16,7 +15,6 @@ const volunteerRoutes = require('./routes/volunteers');
 const campaignRoutes = require('./routes/campaigns');
 const deliveryRoutes = require('./routes/deliveries');
 const notificationRoutes = require('./routes/notifications');
-const reviewRoutes = require('./routes/reviews');
 
 const app = express();
 
@@ -26,7 +24,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/orphans', orphanRoutes);
 app.use('/api/v1/orphanages', orphanageRoutes);
 app.use('/api/v1/donations', donationRoutes);
@@ -35,10 +32,36 @@ app.use('/api/v1/volunteers', volunteerRoutes);
 app.use('/api/v1/campaigns', campaignRoutes);
 app.use('/api/v1/deliveries', deliveryRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
-app.use('/api/v1/reviews', reviewRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to HopeConnect API' });
 });
+
+const PORT = process.env.PORT || 3000;
+
+const startServer = async () => {
+  try {
+    const isConnected = await testConnection();
+    
+    if (isConnected) {
+      app.listen(PORT, () => {
+        console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+      });
+    } else {
+      console.error('Failed to connect to database. Server not started.');
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error('Server startup error:', error.message);
+    process.exit(1);
+  }
+};
+
+process.on('unhandledRejection', (err) => {
+  console.log('Unhandled Rejection:', err.message);
+  process.exit(1);
+});
+
+startServer();
 
 module.exports = app;
